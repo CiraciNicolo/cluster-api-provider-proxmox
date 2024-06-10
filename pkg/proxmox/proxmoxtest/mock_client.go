@@ -93,6 +93,59 @@ func (_c *MockClient_CloneVM_Call) RunAndReturn(run func(context.Context, int, p
 	return _c
 }
 
+// CloudInitStatus provides a mock function with given fields: ctx, vm
+func (_m *MockClient) CloudInitStatus(ctx context.Context, vm *go_proxmox.VirtualMachine) (bool, error) {
+	ret := _m.Called(ctx, vm)
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) (bool, error)); ok {
+		return rf(ctx, vm)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) bool); ok {
+		r0 = rf(ctx, vm)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *go_proxmox.VirtualMachine) error); ok {
+		r1 = rf(ctx, vm)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockClient_CloudInitStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CloudInitStatus'
+type MockClient_CloudInitStatus_Call struct {
+	*mock.Call
+}
+
+// CloudInitStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vm *go_proxmox.VirtualMachine
+func (_e *MockClient_Expecter) CloudInitStatus(ctx interface{}, vm interface{}) *MockClient_CloudInitStatus_Call {
+	return &MockClient_CloudInitStatus_Call{Call: _e.mock.On("CloudInitStatus", ctx, vm)}
+}
+
+func (_c *MockClient_CloudInitStatus_Call) Run(run func(ctx context.Context, vm *go_proxmox.VirtualMachine)) *MockClient_CloudInitStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*go_proxmox.VirtualMachine))
+	})
+	return _c
+}
+
+func (_c *MockClient_CloudInitStatus_Call) Return(_a0 bool, _a1 error) *MockClient_CloudInitStatus_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockClient_CloudInitStatus_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine) (bool, error)) *MockClient_CloudInitStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ConfigureVM provides a mock function with given fields: ctx, vm, options
 func (_m *MockClient) ConfigureVM(ctx context.Context, vm *go_proxmox.VirtualMachine, options ...go_proxmox.VirtualMachineOption) (*go_proxmox.Task, error) {
 	_va := make([]interface{}, len(options))
@@ -650,7 +703,7 @@ func (_c *MockClient_TagVM_Call) RunAndReturn(run func(context.Context, *go_prox
 	return _c
 }
 
-// UnmountCloudInitISO UnmountCloudInitISO unmounts the cloud-init iso from VM.
+// UnmountCloudInitISO provides a mock function with given fields: ctx, vm, device
 func (_m *MockClient) UnmountCloudInitISO(ctx context.Context, vm *go_proxmox.VirtualMachine, device string) error {
 	ret := _m.Called(ctx, vm, device)
 
@@ -690,60 +743,6 @@ func (_c *MockClient_UnmountCloudInitISO_Call) Return(_a0 error) *MockClient_Unm
 }
 
 func (_c *MockClient_UnmountCloudInitISO_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine, string) error) *MockClient_UnmountCloudInitISO_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CloudInitStatus provides a mock function with given fields: ctx, vm
-func (_m *MockClient) CloudInitStatus(ctx context.Context, vm *go_proxmox.VirtualMachine) (bool, error) {
-	ret := _m.Called(ctx, vm)
-
-	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) (bool, error)); ok {
-		return rf(ctx, vm)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, *go_proxmox.VirtualMachine) bool); ok {
-		r0 = rf(ctx, vm)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(bool)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, *go_proxmox.VirtualMachine) error); ok {
-		r1 = rf(ctx, vm)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockClient_CloudInitStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CloudInitStatus'
-type MockClient_CloudInitStatus_Call struct {
-	*mock.Call
-}
-
-// CloudInitStatus is a helper method to define mock.On call
-//   - ctx context.Context
-//   - vm *go_proxmox.VirtualMachine
-func (_e *MockClient_Expecter) CloudInitStatus(ctx interface{}, vm interface{}) *MockClient_CloudInitStatus_Call {
-	return &MockClient_CloudInitStatus_Call{Call: _e.mock.On("CloudInitStatus", ctx, vm)}
-}
-
-func (_c *MockClient_CloudInitStatus_Call) Run(run func(ctx context.Context, vm *go_proxmox.VirtualMachine)) *MockClient_CloudInitStatus_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*go_proxmox.VirtualMachine))
-	})
-	return _c
-}
-
-func (_c *MockClient_CloudInitStatus_Call) Return(_a0 bool, _a1 error) *MockClient_CloudInitStatus_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockClient_CloudInitStatus_Call) RunAndReturn(run func(context.Context, *go_proxmox.VirtualMachine, string) (bool, error)) *MockClient_CloudInitStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }

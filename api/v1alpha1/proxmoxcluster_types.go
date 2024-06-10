@@ -71,7 +71,21 @@ type ProxmoxClusterSpec struct {
 	// in the configuration and cloning of a proxmox VM. Multiple types of nodes can be specified.
 	// +optional
 	CloneSpec *ProxmoxClusterCloneSpec `json:"cloneSpec,omitempty"`
+
+	// CloneConcurrency allows the controller to clone multiple VM at the same time.
+	// +optional
+	CloneConcurrency *CloneConcurrenctyMode `json:"cloneConcurrency,omitempty"`
 }
+
+// CloneConcurrenctyMode specify which mode to use
+type CloneConcurrenctyMode string
+
+const (
+	// CloneConcurrenctyModeSingle only a single Clone operation is supported
+	CloneConcurrenctyModeSingle CloneConcurrenctyMode = "CloneConcurrenctyModeSingle"
+	// CloneConcurrenctyModeAtomic only a single Clone operation is supported per MachineDeployment
+	CloneConcurrenctyModeAtomic CloneConcurrenctyMode = "CloneConcurrenctyModeAtomic"
+)
 
 // ProxmoxClusterCloneSpec is the configuration pertaining to all items configurable
 // in the configuration and cloning of a proxmox VM.
