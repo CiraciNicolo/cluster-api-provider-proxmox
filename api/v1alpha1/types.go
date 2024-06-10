@@ -66,3 +66,11 @@ type NetworkStatus struct {
 	// +optional
 	NetworkName string `json:"networkName,omitempty"`
 }
+
+type ControllerFlags struct {
+	MetricsAddr          string
+	EnableLeaderElection bool
+	EnableWebhooks       bool
+	ProbeAddr            string
+	ManagePool           bool
+}

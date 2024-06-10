@@ -125,6 +125,7 @@ spec:
       templateID: ${TEMPLATE_VMID}
       format: "qcow2"
       full: true
+      pool: capmox-e2e-cp
       numSockets: ${NUM_SOCKETS:=2}
       numCores: ${NUM_CORES:=4}
       memoryMiB: ${MEMORY_MIB:=16384}
@@ -134,6 +135,7 @@ spec:
           sizeGb: ${BOOT_VOLUME_SIZE:=100}
       network:
         default:
+          vlan: ${VLAN}
           bridge: ${BRIDGE}
           model: virtio
 ---
@@ -174,6 +176,7 @@ spec:
       templateID: ${TEMPLATE_VMID}
       format: "qcow2"
       full: true
+      pool: capmox-e2e-workers
       numSockets: ${NUM_SOCKETS:=2}
       numCores: ${NUM_CORES:=4}
       memoryMiB: ${MEMORY_MIB:=16384}
@@ -183,6 +186,7 @@ spec:
           sizeGb: ${BOOT_VOLUME_SIZE:=100}
       network:
         default:
+          vlan: ${VLAN}
           bridge: ${BRIDGE}
           model: virtio
 ---

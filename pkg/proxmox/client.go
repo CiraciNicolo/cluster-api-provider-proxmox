@@ -50,4 +50,8 @@ type Client interface {
 	UnmountCloudInitISO(ctx context.Context, vm *proxmox.VirtualMachine, device string) error
 
 	CloudInitStatus(ctx context.Context, vm *proxmox.VirtualMachine) (bool, error)
+
+	EnsurePool(ctx context.Context, clusterName string, poolName string) error
+
+	DestroyPool(ctx context.Context, clusterName string, poolName string) error
 }

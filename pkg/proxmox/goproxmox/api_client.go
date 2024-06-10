@@ -93,6 +93,36 @@ func (c *APIClient) CloneVM(ctx context.Context, templateID int, clone capmox.VM
 	return capmox.VMCloneResponse{NewID: int64(newID), Task: task}, nil
 }
 
+// EnsurePool ensures Pool exists, otherwise create
+func (c *APIClient) EnsurePool(ctx context.Context, clusterName string, poolName string) error {
+	pool, _ := c.Pool(ctx, poolName)
+	if pool == nil {
+		if err := c.NewPool(ctx, poolName, clusterName); err != nil {
+			return fmt.Errorf("unable to create pool: %w", err)
+		}
+	} else if pool.Comment != clusterName {
+		return fmt.Errorf("pool comment %q does not match cluster name %q", poolName, clusterName)
+	}
+
+	return nil
+}
+
+// DestroyPool ensures Pool exists, otherwise create
+func (c *APIClient) DestroyPool(ctx context.Context, clusterName string, poolName string) error {
+	pool, err := c.Pool(ctx, poolName)
+	if err != nil {
+		return fmt.Errorf("unable to find pool %q: %w", poolName, err)
+	}
+	if pool == nil {
+		return fmt.Errorf("pool %q not found", poolName)
+	}
+	if pool.Comment != clusterName {
+		return fmt.Errorf("pool comment %q does not match cluster name %q", poolName, clusterName)
+	}
+
+	return pool.Delete(ctx)
+}
+
 // ConfigureVM updates a VMs settings.
 func (c *APIClient) ConfigureVM(ctx context.Context, vm *proxmox.VirtualMachine, options ...capmox.VirtualMachineOption) (*proxmox.Task, error) {
 	task, err := vm.Config(ctx, options...)

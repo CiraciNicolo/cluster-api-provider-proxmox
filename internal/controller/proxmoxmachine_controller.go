@@ -18,7 +18,7 @@ package controller
 
 import (
 	"context"
-
+	"fmt"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"slices"
 
 	infrav1alpha1 "github.com/ionos-cloud/cluster-api-provider-proxmox/api/v1alpha1"
 	"github.com/ionos-cloud/cluster-api-provider-proxmox/internal/service/taskservice"
@@ -47,9 +48,10 @@ import (
 // ProxmoxMachineReconciler reconciles a ProxmoxMachine object.
 type ProxmoxMachineReconciler struct {
 	client.Client
-	Scheme        *runtime.Scheme
-	Recorder      record.EventRecorder
-	ProxmoxClient proxmox.Client
+	Scheme          *runtime.Scheme
+	Recorder        record.EventRecorder
+	ProxmoxClient   proxmox.Client
+	ControllerFlags infrav1alpha1.ControllerFlags
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -66,12 +68,14 @@ func (r *ProxmoxMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxmachines/finalizers,verbs=update
-// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines;machines/status,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=secrets;,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
+
+//+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines;machines/status,verbs=get;list;watch
 
 //+kubebuilder:rbac:groups=ipam.cluster.x-k8s.io,resources=ipaddresses,verbs=get;list;watch
 //+kubebuilder:rbac:groups=ipam.cluster.x-k8s.io,resources=ipaddressclaims,verbs=get;list;watch;create;update;delete
+
+//+kubebuilder:rbac:groups="",resources=secrets;,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -157,14 +161,63 @@ func (r *ProxmoxMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 func (r *ProxmoxMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.MachineScope) (ctrl.Result, error) {
 	machineScope.Logger.Info("Handling deleted ProxmoxMachine")
-	conditions.MarkFalse(machineScope.ProxmoxMachine, infrav1alpha1.VMProvisionedCondition, clusterv1.DeletingReason, clusterv1.ConditionSeverityInfo, "")
+
+	conditions.MarkFalse(machineScope.ProxmoxMachine,
+		infrav1alpha1.VMProvisionedCondition,
+		clusterv1.DeletingReason,
+		clusterv1.ConditionSeverityInfo,
+		"")
 
 	err := vmservice.DeleteVM(ctx, machineScope)
 	if err != nil {
-		return reconcile.Result{}, err
+		machineScope.Error(err, "ProxmoxMachine deletion failed")
+		return reconcile.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
 	}
-	// VM is being deleted
-	return reconcile.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
+
+	if r.ControllerFlags.ManagePool && machineScope.InPool() {
+		var machineSelector client.MatchingLabels
+
+		if v, ok := machineScope.Machine.Labels[clusterv1.MachineDeploymentNameLabel]; ok {
+			machineSelector = client.MatchingLabels{clusterv1.MachineDeploymentNameLabel: v}
+		} else if _, ok := machineScope.Machine.Labels[clusterv1.MachineControlPlaneLabel]; ok {
+			machineSelector = client.MatchingLabels{clusterv1.MachineControlPlaneLabel: ""}
+		} else {
+			return reconcile.Result{}, fmt.Errorf("no matching selector was found valid")
+		}
+
+		siblingsList := infrav1alpha1.ProxmoxMachineList{}
+
+		if err := r.Client.List(ctx, &siblingsList,
+			client.InNamespace(machineScope.Machine.Namespace),
+			machineSelector); err != nil {
+			machineScope.Error(err, "MachineDeployment not found")
+			return reconcile.Result{}, err
+		}
+
+		// Filter out ProxmoxMachines marked as deleted
+		siblings := slices.DeleteFunc(siblingsList.Items, func(m infrav1alpha1.ProxmoxMachine) bool {
+			return !m.DeletionTimestamp.IsZero()
+		})
+
+		// Last Machine has been deleted
+		if len(siblings) == 0 {
+			err := machineScope.InfraCluster.ProxmoxClient.DestroyPool(ctx,
+				machineScope.Cluster.Name,
+				*machineScope.ProxmoxMachine.Spec.Pool)
+			if err != nil && !vmservice.PoolNotEmpty(err) {
+				machineScope.Error(err, "unable to destroy pool")
+				return reconcile.Result{}, err
+			} else if err != nil && vmservice.PoolNotEmpty(err) {
+				machineScope.Info("VM is still being decommissioned")
+				return reconcile.Result{RequeueAfter: infrav1alpha1.DefaultReconcilerRequeue}, nil
+			}
+		}
+	}
+
+	// The VM is deleted so remove the finalizer and remove the ProxmoxNode ref from the cluster
+	machineScope.InfraCluster.ProxmoxCluster.RemoveNodeLocation(machineScope.Name(), util.IsControlPlaneMachine(machineScope.Machine))
+	ctrlutil.RemoveFinalizer(machineScope.ProxmoxMachine, infrav1alpha1.MachineFinalizer)
+	return reconcile.Result{}, nil
 }
 
 func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
@@ -195,6 +248,16 @@ func (r *ProxmoxMachineReconciler) reconcileNormal(ctx context.Context, machineS
 		if err := machineScope.PatchObject(); err != nil {
 			machineScope.Error(err, "unable to patch object")
 			return ctrl.Result{}, err
+		}
+	}
+
+	// We will create the Pool specified if not existing, only if controller has the right to manage pools
+	if r.ControllerFlags.ManagePool && machineScope.InPool() {
+		if err := machineScope.InfraCluster.ProxmoxClient.EnsurePool(ctx,
+			machineScope.Cluster.Name,
+			*machineScope.ProxmoxMachine.Spec.Pool); err != nil {
+			machineScope.Error(err, "unable to create pool")
+			return reconcile.Result{}, err
 		}
 	}
 

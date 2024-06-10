@@ -243,3 +243,8 @@ func (m *MachineScope) GetBootstrapSecret(ctx context.Context, secret *corev1.Se
 
 	return m.client.Get(ctx, secretKey, secret)
 }
+
+// InPool returns if the ProxmoxMachine should be in a Proxmox pool
+func (m *MachineScope) InPool() bool {
+	return m.ProxmoxMachine.Spec.Pool != nil || len(*m.ProxmoxMachine.Spec.Pool) != 0
+}

@@ -44,6 +44,7 @@ spec:
         - --leader-elect
         - --feature-gates=ClusterTopology=${ClusterTopology:=false}
         - "--metrics-bind-address=localhost:8080"
+        - "--manage-pools=${CAPMOX_MANAGE_POOL:=false}"
         - "--v=${CAPMOX_LOGLEVEL:=0}"
         image: controller:latest
         name: manager

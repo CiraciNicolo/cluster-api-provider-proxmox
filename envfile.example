@@ -2,6 +2,8 @@ export PROXMOX_URL=https://pve.example.com
 export PROXMOX_TOKEN=""
 export PROXMOX_SECRET=""
 export PROXMOX_SOURCENODE="pve"
+export CAPMOX_MANAGE_POOL="false"
+
 export TEMPLATE_VMID=100
 export VM_SSH_KEYS="ssh-ed25519 ..., ssh-ed25519 ..."
 export KUBERNETES_VERSION="1.25.1"
@@ -20,6 +22,7 @@ export NUM_SOCKETS=2
 export NUM_CORES=4
 export MEMORY_MIB=16384
 export BRIDGE=vmbr0
+export VLAN=100
 
 # Multiple NICS
 export NODE_SECONDARY_IP_RANGES="[10.10.10.100-10.10.10.150]"

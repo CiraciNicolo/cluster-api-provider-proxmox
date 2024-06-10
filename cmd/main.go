@@ -56,14 +56,9 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
-
-	metricsAddr          string
-	enableLeaderElection bool
-	enableWebhooks       bool
-	probeAddr            string
-
+	scheme          = runtime.NewScheme()
+	setupLog        = ctrl.Log.WithName("setup")
+	controllerFlags = infrastructurev1alpha1.ControllerFlags{}
 	// ProxmoxURL env variable that defines the Proxmox host.
 	ProxmoxURL string
 	// ProxmoxTokenID env variable that defines the Proxmox token id.
@@ -92,12 +87,12 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:  scheme,
-		Metrics: metricsserver.Options{BindAddress: metricsAddr},
+		Metrics: metricsserver.Options{BindAddress: controllerFlags.MetricsAddr},
 		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
 			Port: 9443,
 		}),
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
+		HealthProbeBindAddress: controllerFlags.ProbeAddr,
+		LeaderElection:         controllerFlags.EnableLeaderElection,
 		LeaderElectionID:       "controller-leader-elect-capmox",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
@@ -135,7 +130,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if enableWebhooks {
+	if controllerFlags.EnableWebhooks {
 		if err = (&webhook.ProxmoxCluster{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "ProxmoxCluster")
 			os.Exit(1)
@@ -164,19 +159,22 @@ func main() {
 }
 
 func setupReconcilers(ctx context.Context, mgr ctrl.Manager, client capmox.Client) error {
+
 	if err := (&controller.ProxmoxClusterReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		Recorder:      mgr.GetEventRecorderFor("proxmoxcluster-controller"),
-		ProxmoxClient: client,
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		Recorder:        mgr.GetEventRecorderFor("proxmoxcluster-controller"),
+		ProxmoxClient:   client,
+		ControllerFlags: controllerFlags,
 	}).SetupWithManager(ctx, mgr); err != nil {
 		return fmt.Errorf("setting up ProxmoxCluster controller: %w", err)
 	}
 	if err := (&controller.ProxmoxMachineReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		Recorder:      mgr.GetEventRecorderFor("proxmoxmachine-controller"),
-		ProxmoxClient: client,
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		Recorder:        mgr.GetEventRecorderFor("proxmoxmachine-controller"),
+		ProxmoxClient:   client,
+		ControllerFlags: controllerFlags,
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("setting up ProxmoxMachine controller: %w", err)
 	}
@@ -205,13 +203,17 @@ func initFlagsAndEnv(fs *pflag.FlagSet) {
 	ProxmoxTokenID = env.GetString("PROXMOX_TOKEN", "")
 	ProxmoxSecret = env.GetString("PROXMOX_SECRET", "")
 
-	fs.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	fs.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	fs.BoolVar(&enableLeaderElection, "leader-elect", false,
+	fs.StringVar(&controllerFlags.MetricsAddr, "metrics-bind-address", ":8080",
+		"The address the metric endpoint binds to.")
+	fs.StringVar(&controllerFlags.ProbeAddr, "health-probe-bind-address", ":8081",
+		"The address the probe endpoint binds to.")
+	fs.BoolVar(&controllerFlags.EnableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	fs.BoolVar(&enableWebhooks, "enable-webhooks", true,
+	fs.BoolVar(&controllerFlags.EnableWebhooks, "enable-webhooks", true,
 		"If true, run webhook server alongside manager")
+	fs.BoolVar(&controllerFlags.ManagePool, "manage-pools", false,
+		"If true, will manage Proxmox Pools")
 
 	feature.MutableGates.AddFlag(fs)
 

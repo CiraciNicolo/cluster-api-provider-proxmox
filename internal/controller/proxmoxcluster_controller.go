@@ -52,9 +52,10 @@ const (
 // ProxmoxClusterReconciler reconciles a ProxmoxCluster object.
 type ProxmoxClusterReconciler struct {
 	client.Client
-	Scheme        *runtime.Scheme
-	Recorder      record.EventRecorder
-	ProxmoxClient proxmox.Client
+	Scheme          *runtime.Scheme
+	Recorder        record.EventRecorder
+	ProxmoxClient   proxmox.Client
+	ControllerFlags infrav1alpha1.ControllerFlags
 }
 
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=proxmoxclusters,verbs=get;list;watch;create;update;patch;delete
@@ -118,7 +119,7 @@ func (r *ProxmoxClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return reconcile.Result{}, errors.Errorf("failed to create scope: %+v", err)
 	}
 
-	// Always close the scope when exiting this function so we can persist any ProxmoxCluster changes.
+	// Always close the scope when exiting this function, so we can persist any ProxmoxCluster changes.
 	defer func() {
 		if err := clusterScope.Close(); err != nil && reterr == nil {
 			reterr = err
